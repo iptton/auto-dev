@@ -37,8 +37,6 @@ class CustomLLMProvider(val project: Project) : LLMProvider, CustomSSEProcessor(
         messages += Message(role.roleName(), msg)
     }
 
-    override fun prompt(promptText: String): String = this.prompt(promptText, "")
-
     override fun stream(promptText: String, systemPrompt: String, keepHistory: Boolean): Flow<String> {
         if (!keepHistory || project.coderSetting.state.noChatHistory) {
             clearMessage()
