@@ -1,13 +1,11 @@
-@file:OptIn(ExperimentalCoroutinesApi::class)
-
 package cc.unitmesh.devti.llms.xianghuo
 
-import cc.unitmesh.devti.llms.LLMProvider
+import cc.unitmesh.cf.core.llms.LlmMsg
+import cc.unitmesh.devti.llms.*
+import cc.unitmesh.devti.llms.xianghuo.XingHuoProvider.MyListener
 import cc.unitmesh.devti.settings.AutoDevSettingsState
 import cc.unitmesh.devti.settings.XingHuoApiVersion
 import com.intellij.openapi.components.Service
-import com.intellij.openapi.project.Project
-import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.channels.ProducerScope
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
@@ -20,9 +18,19 @@ import java.util.*
 import javax.crypto.Mac
 import javax.crypto.spec.SecretKeySpec
 
-
 @Service(Service.Level.PROJECT)
-class XingHuoProvider(val project: Project) : LLMProvider {
+class SparkProvider : LLMProvider2() {
+
+    override fun stream(sendingSession: ChatSession): Flow<String> = callbackFlow {
+        val client = OkHttpClient()
+        client.newWebSocket(request, MyListener(this, onSocketOpen = {
+            val msg = getSendBody(sendingSession)
+            send(msg)
+        }))
+
+        awaitClose()
+    }
+
     private val autoDevSettingsState = AutoDevSettingsState.getInstance()
     private val secretKey: String
         get() = autoDevSettingsState.xingHuoApiSecrect
@@ -53,68 +61,6 @@ class XingHuoProvider(val project: Project) : LLMProvider {
             hmac.init(keySpec)
             return hmac
         }
-
-    override fun clearMessage() {
-        //
-    }
-
-    @OptIn(ExperimentalCoroutinesApi::class)
-    override fun stream(promptText: String, systemPrompt: String, keepHistory: Boolean): Flow<String> {
-        if (!keepHistory) {
-            clearMessage()
-        }
-
-        return callbackFlow {
-            val client = OkHttpClient()
-            client.newWebSocket(request, MyListener(this, onSocketOpen = {
-                val msg = getSendBody(promptText)
-                send(msg)
-            }))
-            awaitClose()
-        }
-    }
-
-
-    class MyListener(
-        private val producerScope: ProducerScope<String>,
-        private val onSocketOpen: WebSocket.() -> Unit,
-    ) : WebSocketListener() {
-
-        private var sockedOpen = false
-        override fun onOpen(webSocket: WebSocket, response: Response) {
-            webSocket.onSocketOpen()
-            sockedOpen = true
-        }
-
-        override fun onMessage(webSocket: WebSocket, text: String) {
-            runCatching {
-                val element = Json.parseToJsonElement(text)
-                val choices = element.jsonObject["payload"]!!.jsonObject["choices"]!!
-                val statusCode: Int = choices.jsonObject["status"]?.jsonPrimitive?.int!!
-                val message = choices.jsonObject["text"]!!.jsonArray[0]
-                val text: String = message.jsonObject["content"]!!.jsonPrimitive.content
-                producerScope.trySend(text)
-                if (statusCode == 2) { // TODO fix hardcode
-                    producerScope.close()
-                }
-            }.getOrElse { err ->
-                producerScope.trySend("onMessage ${err.message}")
-                producerScope.close(err)
-            }
-        }
-
-        override fun onClosed(webSocket: WebSocket, code: Int, reason: String) {
-            producerScope.close()
-        }
-
-        override fun onFailure(webSocket: WebSocket, t: Throwable, response: Response?) {
-            // WebSocket connection failed
-            println("failure ${t.message} ${response?.body} ${response?.message} ${response?.code}")
-            producerScope.trySend("onFailure ${response?.body} ${response?.message} ${response?.code}")
-            producerScope.close()
-        }
-    }
-
     private val request: Request
         get() {
             // https://www.xfyun.cn/doc/spark/general_url_authentication.html#_1-2-%E9%89%B4%E6%9D%83%E5%8F%82%E6%95%B0
@@ -144,7 +90,7 @@ class XingHuoProvider(val project: Project) : LLMProvider {
             return Request.Builder().url(url).build()
         }
 
-    private fun getSendBody(message: String): String {
+    private fun getSendBody(sendingSession: ChatSession): String {
         return """{
             "header": {
                 "app_id": "$appid",
@@ -160,14 +106,57 @@ class XingHuoProvider(val project: Project) : LLMProvider {
             "payload": {
                 "message": {
                     "text": [
-                        {"role": "user", "content": "${message.replace("\n", "\\n")}"}
+                        ${sendingSession.chatHistory.joinToString(",\n") { """{"role": "${it.role}", "content": "${it.content.replace("\n", "\\n")}"}""" }}
                     ]
                 }
             }
         }""".trimIndent()
     }
+
+    private fun ByteArray.encodeBase64(): String {
+        return Base64.getEncoder().encodeToString(this)
+    }
+
 }
 
-private fun ByteArray.encodeBase64(): String {
-    return Base64.getEncoder().encodeToString(this)
+
+class SparkWebsocketListener(
+    private val producerScope: ProducerScope<String>,
+    private val onSocketOpen: WebSocket.() -> Unit,
+) : WebSocketListener() {
+
+    private var sockedOpen = false
+    override fun onOpen(webSocket: WebSocket, response: Response) {
+        webSocket.onSocketOpen()
+        sockedOpen = true
+    }
+
+    override fun onMessage(webSocket: WebSocket, text: String) {
+        runCatching {
+            val element = Json.parseToJsonElement(text)
+            val choices = element.jsonObject["payload"]!!.jsonObject["choices"]!!
+            val statusCode: Int = choices.jsonObject["status"]?.jsonPrimitive?.int!!
+            val message = choices.jsonObject["text"]!!.jsonArray[0]
+            val text: String = message.jsonObject["content"]!!.jsonPrimitive.content
+            producerScope.trySend(text)
+            if (statusCode == 2) { // TODO fix hardcode
+                producerScope.close()
+            }
+        }.getOrElse { err ->
+            producerScope.trySend("onMessage ${err.message}")
+            producerScope.close(err)
+        }
+        producerScope.trySend(text)
+    }
+
+    override fun onClosed(webSocket: WebSocket, code: Int, reason: String) {
+        producerScope.close()
+    }
+
+    override fun onFailure(webSocket: WebSocket, t: Throwable, response: Response?) {
+        // WebSocket connection failed
+        println("failure ${t.message} ${response?.body} ${response?.message} ${response?.code}")
+        producerScope.trySend("onFailure ${response?.body} ${response?.message} ${response?.code}")
+        producerScope.close()
+    }
 }

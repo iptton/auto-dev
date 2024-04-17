@@ -67,10 +67,6 @@ class AzureOpenAIProvider(val project: Project) : LLMProvider {
         customPromptConfig = CustomPromptConfig.tryParse(prompts)
     }
 
-    override fun prompt(promptText: String): String {
-        return this.prompt(promptText, "")
-    }
-
     private val messages: MutableList<SimpleOpenAIFormat> = ArrayList()
     private var historyMessageLength: Int = 0
 
