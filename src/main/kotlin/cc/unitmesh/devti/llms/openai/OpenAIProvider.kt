@@ -98,16 +98,6 @@ class OpenAIProvider(val project: Project) : LLMProvider {
         messages.add(message)
     }
 
-    override fun prompt(promptText: String): String {
-        val completionRequest = prepareRequest(promptText, "")
-
-        val completion = service.createChatCompletion(completionRequest)
-        val output = completion
-            .choices[0].message.content
-
-        return output
-    }
-
     @OptIn(ExperimentalCoroutinesApi::class)
     override fun stream(promptText: String, systemPrompt: String, keepHistory: Boolean): Flow<String> {
         if (!keepHistory) {

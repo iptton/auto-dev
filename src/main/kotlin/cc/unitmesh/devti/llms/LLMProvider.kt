@@ -9,17 +9,7 @@ import kotlinx.coroutines.flow.callbackFlow
 interface LLMProvider {
     val defaultTimeout: Long get() = 600
 
-    fun prompt(promptText: String): String
-
-    @OptIn(ExperimentalCoroutinesApi::class)
-    fun stream(promptText: String, systemPrompt: String, keepHistory: Boolean = true): Flow<String> {
-        return callbackFlow {
-            val prompt = prompt(promptText)
-            trySend(prompt)
-
-            awaitClose()
-        }
-    }
+    fun stream(promptText: String, systemPrompt: String, keepHistory: Boolean = true): Flow<String>
 
     fun clearMessage() {
 

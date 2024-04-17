@@ -2,15 +2,14 @@ package cc.unitmesh.devti.gui.chat
 
 import cc.unitmesh.cf.core.llms.LlmMsg
 import cc.unitmesh.devti.AutoDevBundle
-import cc.unitmesh.devti.util.LLMCoroutineScope
 import cc.unitmesh.devti.counit.CustomAgentChatProcessor
 import cc.unitmesh.devti.counit.configurable.customAgentSetting
 import cc.unitmesh.devti.counit.model.CustomAgentState
 import cc.unitmesh.devti.custom.compile.CustomVariable
-import cc.unitmesh.devti.custom.compile.VariableTemplateCompiler
 import cc.unitmesh.devti.llms.LlmFactory
-import cc.unitmesh.devti.util.parser.PostCodeProcessor
 import cc.unitmesh.devti.provider.ContextPrompter
+import cc.unitmesh.devti.util.LLMCoroutineScope
+import cc.unitmesh.devti.util.parser.PostCodeProcessor
 import com.intellij.openapi.application.ApplicationManager
 import com.intellij.openapi.components.service
 import com.intellij.openapi.project.Project
