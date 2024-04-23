@@ -4,12 +4,11 @@ import cc.unitmesh.database.DbContextActionProvider
 import cc.unitmesh.devti.AutoDevBundle
 import cc.unitmesh.devti.flow.TaskFlow
 import cc.unitmesh.devti.gui.chat.ChatCodingPanel
-import cc.unitmesh.devti.llms.LLMProvider
-import cc.unitmesh.devti.template.GENIUS_SQL
 import cc.unitmesh.devti.gui.chat.ChatRole
 import cc.unitmesh.devti.llms.ChatMessage
 import cc.unitmesh.devti.llms.ChatSession
 import cc.unitmesh.devti.llms.LLMProvider2
+import cc.unitmesh.devti.template.GENIUS_SQL
 import cc.unitmesh.devti.template.TemplateRender
 import com.intellij.openapi.diagnostic.logger
 import kotlinx.coroutines.runBlocking

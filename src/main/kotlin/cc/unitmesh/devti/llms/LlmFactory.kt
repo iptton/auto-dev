@@ -1,11 +1,7 @@
 package cc.unitmesh.devti.llms
 
 import cc.unitmesh.devti.llms.xianghuo.SparkProvider
-import cc.unitmesh.devti.llms.azure.AzureOpenAIProvider
-import cc.unitmesh.devti.llms.custom.CustomLLMProvider
 import cc.unitmesh.devti.llms.custom.InlayCustomLLMProvider
-import cc.unitmesh.devti.llms.openai.OpenAIProvider
-import cc.unitmesh.devti.llms.xianghuo.XingHuoProvider
 import cc.unitmesh.devti.settings.AIEngines
 import cc.unitmesh.devti.settings.AutoDevSettingsState
 import cc.unitmesh.devti.settings.coder.AutoDevCoderSettingService
