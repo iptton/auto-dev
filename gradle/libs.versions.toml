@@ -5,8 +5,9 @@ changelog = "2.2.1"
 gradleIntelliJPlugin = "2.1.0"
 qodana = "0.1.13"
 kover = "0.7.5"
-
+grammarkit = "2022.3.2.2"
 chapi = "2.1.2"
+compose-plugin = "1.7.3"
 
 [libraries]
 
@@ -19,5 +20,9 @@ kotlin = { id = "org.jetbrains.kotlin.jvm", version.ref = "kotlin" }
 kover = { id = "org.jetbrains.kotlinx.kover", version.ref = "kover" }
 qodana = { id = "org.jetbrains.qodana", version.ref = "qodana" }
 serialization = { id = "org.jetbrains.kotlin.plugin.serialization", version.ref = "kotlin" }
+grammarkit = { id = "org.jetbrains.grammarkit", version.ref = "grammarkit"}
+jetbrainsCompose = { id = "org.jetbrains.compose", version.ref = "compose-plugin" }
+compose-compiler = { id = "org.jetbrains.kotlin.plugin.compose", version.ref = "kotlin" }
+
 
 [bundles]

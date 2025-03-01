@@ -1,0 +1,9 @@
+<idea-plugin>
+    <extensions defaultExtensionNs="com.intellij">
+        <!-- 注册Compose工具窗口 -->
+        <toolWindow id="AutoDevCompose" 
+                    factoryClass="cc.unitmesh.devti.gui.compose.ComposeToolWindowFactory"
+                    icon="/icons/autodev.svg"
+                    anchor="right" />
+    </extensions>
+</idea-plugin>

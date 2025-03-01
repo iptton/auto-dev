@@ -1,6 +1,7 @@
 package cc.unitmesh.devti.settings
 
 import cc.unitmesh.devti.AutoDevBundle
+import cc.unitmesh.devti.gui.compose.AutoDevComposePanel
 import com.intellij.openapi.options.Configurable
 import org.jetbrains.annotations.Nls
 import org.jetbrains.annotations.Nullable
@@ -18,7 +19,7 @@ class AutoDevSettingsConfigurable : Configurable {
     override fun getPreferredFocusedComponent(): JComponent? = null
 
     @Nullable
-    override fun createComponent(): JComponent = component.panel
+    override fun createComponent(): JComponent = AutoDevComposePanel().createComposePanel() //component.panel
 
     override fun isModified(): Boolean {
         val settings: AutoDevSettingsState = AutoDevSettingsState.getInstance()

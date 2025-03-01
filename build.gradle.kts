@@ -24,11 +24,13 @@ plugins {
     alias(libs.plugins.kover) // Gradle Kover Plugin
     alias(libs.plugins.serialization)
     alias(libs.plugins.gradleIntelliJPlugin)
-
-    id("org.jetbrains.grammarkit") version "2022.3.2.2"
+    alias(libs.plugins.grammarkit)
 
     kotlin("jvm") version "1.8.22"
     id("net.saliman.properties") version "1.5.2"
+
+    alias(libs.plugins.jetbrainsCompose) apply false
+    alias(libs.plugins.compose.compiler) apply false
 }
 
 fun properties(key: String) = providers.gradleProperty(key)
