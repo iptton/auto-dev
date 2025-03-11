@@ -1,23 +1,38 @@
 [versions]
 dokka = "1.9.10"
-kotlin = "2.1.0"
+kotlin = "2.0.21"
 changelog = "2.2.1"
 gradleIntelliJPlugin = "2.1.0"
 qodana = "0.1.13"
 kover = "0.7.5"
-
+composeDesktop = "1.7.1"
+kotlinterGradlePlugin = "3.12.0"
+newIdeaGradlePlugin = "2.3.0"
+grammarkit = "2022.3.2.2"
+jewel = "0.26.0"
+salimanProperties = "1.5.2"
 chapi = "2.1.2"
 
 [libraries]
-
+gradle-intellij-platform-plugin = { module = "org.jetbrains.intellij.platform:intellij-platform-gradle-plugin", version.ref = "newIdeaGradlePlugin" }
+compose-runtime = { module ="androidx.compose.runtime:runtime", version.ref = "composeDesktop" }
+jewel-bridge-ij241 = { module = "org.jetbrains.jewel:jewel-ide-laf-bridge-241", version.ref = "jewel" }
+jewel-bridge-ij243 = { module = "org.jetbrains.jewel:jewel-ide-laf-bridge-243", version.ref = "jewel" }
+jewel-bridge-ij251 = { module = "org.jetbrains.jewel:jewel-ide-laf-bridge-251", version.ref = "jewel" }
 
 [plugins]
+compose-desktop = { id = "org.jetbrains.compose", version.ref = "composeDesktop" }
 changelog = { id = "org.jetbrains.changelog", version.ref = "changelog" }
 dokka = { id = "org.jetbrains.dokka", version.ref = "dokka" }
 gradleIntelliJPlugin = { id = "org.jetbrains.intellij.platform", version.ref = "gradleIntelliJPlugin" }
-kotlin = { id = "org.jetbrains.kotlin.jvm", version.ref = "kotlin" }
+kotlin-jvm = { id = "org.jetbrains.kotlin.jvm", version.ref = "kotlin" }
+kotlin-plugin-compose = { id = "org.jetbrains.kotlin.plugin.compose", version.ref = "kotlin" }
 kover = { id = "org.jetbrains.kotlinx.kover", version.ref = "kover" }
 qodana = { id = "org.jetbrains.qodana", version.ref = "qodana" }
 serialization = { id = "org.jetbrains.kotlin.plugin.serialization", version.ref = "kotlin" }
+shadow = { id = "com.gradleup.shadow", version = "8.3.3" }
+kotlinter = { id = "org.jmailen.kotlinter", version.ref = "kotlinterGradlePlugin" }
+jetbrains-grammarkit = { id = "org.jetbrains.grammarkit", version.ref = "grammarkit" }
+saliman_properties = { id = "net.saliman.properties", version.ref = "salimanProperties" }
 
 [bundles]

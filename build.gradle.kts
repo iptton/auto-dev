@@ -7,6 +7,7 @@ import org.jetbrains.intellij.platform.gradle.IntelliJPlatformType.IntellijIdeaU
 import org.jetbrains.intellij.platform.gradle.TestFrameworkType
 import org.jetbrains.intellij.platform.gradle.extensions.IntelliJPlatformDependenciesExtension
 import org.jetbrains.intellij.platform.gradle.extensions.IntelliJPlatformTestingExtension
+import org.jetbrains.intellij.platform.gradle.extensions.intellijPlatform
 import org.jetbrains.intellij.platform.gradle.tasks.RunIdeTask
 import org.jetbrains.intellij.platform.gradle.utils.extensionProvider
 import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
@@ -24,11 +25,13 @@ plugins {
     alias(libs.plugins.kover) // Gradle Kover Plugin
     alias(libs.plugins.serialization)
     alias(libs.plugins.gradleIntelliJPlugin)
-
-    id("org.jetbrains.grammarkit") version "2022.3.2.2"
-
-    kotlin("jvm") version "1.8.22"
-    id("net.saliman.properties") version "1.5.2"
+    alias(libs.plugins.dokka)
+    alias(libs.plugins.kotlin.jvm)
+    alias(libs.plugins.kotlin.plugin.compose)
+    alias(libs.plugins.compose.desktop)
+    alias(libs.plugins.kotlinter)
+    alias(libs.plugins.jetbrains.grammarkit)
+    alias(libs.plugins.saliman.properties)
 }
 
 fun properties(key: String) = providers.gradleProperty(key)
@@ -65,12 +68,7 @@ changelog {
 }
 
 repositories {
-    mavenCentral()
-
-    intellijPlatform {
-        defaultRepositories()
-        jetbrainsRuntime()
-    }
+    commonRepositories()
 }
 
 configure(subprojects - project(":exts")) {
@@ -82,15 +80,10 @@ configure(subprojects - project(":exts")) {
     }
 
     repositories {
-        mavenCentral()
-
-        intellijPlatform {
-            defaultRepositories()
-            jetbrainsRuntime()
-        }
+        commonRepositories()
     }
 
-    intellijPlatform {
+     intellijPlatform {
         instrumentCode = false
         buildSearchableOptions = false
     }
@@ -178,13 +171,8 @@ project(":") {
     apply {
         plugin("org.jetbrains.changelog")
         plugin("org.jetbrains.intellij.platform")
-    }
-
-    repositories {
-        intellijPlatform {
-            defaultRepositories()
-            jetbrainsRuntime()
-        }
+        plugin(libs.plugins.compose.desktop.get().pluginId)
+        plugin(libs.plugins.kotlin.plugin.compose.get().pluginId)
     }
 
     intellijPlatform {
@@ -400,6 +388,21 @@ project(":") {
 project(":core") {
     apply {
         plugin("org.jetbrains.kotlin.plugin.serialization")
+        plugin(rootProject.libs.plugins.kotlin.plugin.compose.get().pluginId)
+        plugin(rootProject.libs.plugins.compose.desktop.get().pluginId)
+    }
+
+
+    repositories {
+        mavenCentral()
+        google()
+        maven("https://maven.pkg.jetbrains.space/public/p/compose/dev")
+        maven("https://packages.jetbrains.team/maven/p/kpm/public")
+
+        intellijPlatform {
+            defaultRepositories()
+            jetbrainsRuntime()
+        }
     }
 
     dependencies {
@@ -459,6 +462,20 @@ project(":core") {
         implementation("com.knuddels:jtokkit:1.1.0")
 
         implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.6.3")
+
+        implementation(compose.desktop.currentOs) {
+            exclude(group = "org.jetbrains.compose.material")
+            exclude(group = "org.jetbrains.kotlinx")
+        }
+
+        val targetIdeVersion = providers.gradleProperty("targetIdeVersion").getOrElse("241")
+        val jewelBridge = when (targetIdeVersion) {
+            "241" -> rootProject.libs.jewel.bridge.ij241
+            "243" -> rootProject.libs.jewel.bridge.ij243
+            "251" -> rootProject.libs.jewel.bridge.ij251
+            else -> rootProject.libs.jewel.bridge.ij241 // Default
+        }
+        implementation(jewelBridge)
     }
 
     task("resolveDependencies") {
@@ -478,7 +495,10 @@ project(":pycharm") {
             intellijPlugins(ideaPlugins + pycharmPlugins + prop("jupyterPlugin"))
         }
 
-        implementation(project(":core"))
+        implementation(project(":core")) {
+            exclude("org.jetbrains.jewel")
+            exclude("androidx.compose.runtime")
+        }
     }
 }
 
@@ -491,7 +511,10 @@ project(":java") {
             testFramework(TestFrameworkType.Plugin.Java)
         }
 
-        implementation(project(":core"))
+        implementation(project(":core")) {
+            exclude("org.jetbrains.jewel")
+            exclude("androidx.compose.runtime")
+        }
     }
 }
 
@@ -518,7 +541,7 @@ project(":javascript") {
             testFramework(TestFrameworkType.Plugin.JavaScript)
         }
 
-        implementation(project(":core"))
+
     }
 }
 
@@ -530,7 +553,7 @@ project(":kotlin") {
             testFramework(TestFrameworkType.Plugin.Java)
         }
 
-        implementation(project(":core"))
+
         implementation(project(":java"))
     }
 }
@@ -542,7 +565,7 @@ project(":rust") {
             intellijPlugins(ideaPlugins + rustPlugins)
         }
 
-        implementation(project(":core"))
+
     }
 }
 
@@ -553,7 +576,7 @@ project(":goland") {
             intellijPlugins(prop("goPlugin").split(',').map(String::trim).filter(String::isNotEmpty))
         }
 
-        implementation(project(":core"))
+
     }
 }
 
@@ -563,7 +586,7 @@ project(":exts:ext-database") {
             intellijIde(prop("ideaVersion"))
             intellijPlugins(ideaPlugins + "com.intellij.database")
         }
-        implementation(project(":core"))
+
     }
 
     sourceSets {
@@ -593,7 +616,7 @@ project(":exts:ext-git") {
             intellijPlugins(ideaPlugins + "Git4Idea")
         }
 
-        implementation(project(":core"))
+
         implementation("cc.unitmesh:git-commit-message:0.4.6") {
             excludeKotlinDeps()
         }
@@ -607,7 +630,7 @@ project(":exts:ext-http-client") {
             intellijPlugins(ideaPlugins + "com.jetbrains.restClient")
         }
 
-        implementation(project(":core"))
+
     }
 }
 
@@ -618,7 +641,7 @@ project(":exts:ext-mermaid") {
             intellijPlugins(ideaPlugins + prop("mermaidPlugin"))
         }
 
-        implementation(project(":core"))
+
     }
 }
 
@@ -630,7 +653,7 @@ project(":exts:ext-vue") {
             bundledPlugin("org.jetbrains.plugins.vue")
         }
 
-        implementation(project(":core"))
+
     }
 }
 
@@ -642,7 +665,7 @@ project(":exts:ext-dependencies") {
             bundledPlugin("org.jetbrains.security.package-checker")
         }
 
-        implementation(project(":core"))
+
     }
 }
 
@@ -653,7 +676,7 @@ project(":exts:ext-plantuml") {
             intellijPlugins(ideaPlugins + prop("plantUmlPlugin"))
         }
 
-        implementation(project(":core"))
+
     }
 }
 
@@ -664,7 +687,7 @@ project(":exts:ext-container") {
             intellijPlugins(ideaPlugins + prop("devContainerPlugin") + "Docker")
         }
 
-        implementation(project(":core"))
+
     }
 }
 
@@ -680,7 +703,7 @@ project(":exts:ext-endpoints") {
             )
         }
 
-        implementation(project(":core"))
+
     }
 }
 
@@ -691,7 +714,7 @@ project(":exts:ext-terminal") {
             intellijPlugins(ideaPlugins + "org.jetbrains.plugins.terminal")
         }
 
-        implementation(project(":core"))
+
     }
 
     sourceSets {
@@ -721,7 +744,7 @@ project(":exts:ext-openrewrite") {
             intellijPlugins(ideaPlugins + prop("openWritePlugin"))
         }
 
-        implementation(project(":core"))
+
     }
 
     sourceSets {
@@ -757,7 +780,7 @@ project(":exts:devins-lang") {
             testFramework(TestFrameworkType.Plugin.Java)
         }
 
-        implementation(project(":core"))
+
         implementation(project(":exts:ext-git"))
     }
 
@@ -778,6 +801,39 @@ project(":exts:devins-lang") {
 
         withType<KotlinCompile> {
             dependsOn(generateLexer, generateParser)
+        }
+    }
+}
+
+
+configure(subprojects - project(":core")) {
+    apply {
+        plugin("idea")
+        plugin("kotlin")
+        plugin("org.jetbrains.kotlinx.kover")
+        plugin("org.jetbrains.intellij.platform.module")
+    }
+
+    repositories {
+        commonRepositories()
+    }
+
+    intellijPlatform {
+        instrumentCode = false
+        buildSearchableOptions = false
+    }
+
+    idea {
+        module {
+            generatedSourceDirs.add(file("src/gen"))
+            isDownloadJavadoc = true
+            isDownloadSources = true
+        }
+    }
+    dependencies {
+        implementation(project(":core")) {
+            exclude(group = "org.jetbrains.jewel")
+            exclude(group = "androidx.compose.runtime")
         }
     }
 }
@@ -989,5 +1045,16 @@ fun DependencyHandler.implementationWithoutKotlin(dependencyNotation: Provider<*
 fun DependencyHandler.testImplementationWithoutKotlin(dependencyNotation: Provider<*>) {
     testImplementation(dependencyNotation) {
         excludeKotlinDeps()
+    }
+}
+fun RepositoryHandler.commonRepositories() {
+    mavenCentral()
+    google()
+    maven("https://maven.pkg.jetbrains.space/public/p/compose/dev")
+    maven("https://packages.jetbrains.team/maven/p/kpm/public")
+
+    intellijPlatform {
+        defaultRepositories()
+        jetbrainsRuntime()
     }
 }

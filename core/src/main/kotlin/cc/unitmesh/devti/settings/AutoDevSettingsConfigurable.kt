@@ -5,6 +5,7 @@ import com.intellij.openapi.options.Configurable
 import org.jetbrains.annotations.Nls
 import org.jetbrains.annotations.Nullable
 import javax.swing.JComponent
+import org.jetbrains.jewel.bridge.JewelComposePanel
 
 class AutoDevSettingsConfigurable : Configurable {
     private val component: LLMSettingComponent = LLMSettingComponent(AutoDevSettingsState.getInstance())
@@ -18,7 +19,9 @@ class AutoDevSettingsConfigurable : Configurable {
     override fun getPreferredFocusedComponent(): JComponent? = null
 
     @Nullable
-    override fun createComponent(): JComponent = component.panel
+    override fun createComponent(): JComponent = JewelComposePanel {
+
+    }
 
     override fun isModified(): Boolean {
         val settings: AutoDevSettingsState = AutoDevSettingsState.getInstance()
