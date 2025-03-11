@@ -1,12 +1,14 @@
 package cc.unitmesh.devti.sketch.ui.code
 
 import cc.unitmesh.devti.AutoDevNotifications
+import cc.unitmesh.devti.AutoDevSnippetFile
 import cc.unitmesh.devti.devin.dataprovider.BuiltinCommand
 import cc.unitmesh.devti.provider.BuildSystemProvider
 import cc.unitmesh.devti.provider.RunService
 import cc.unitmesh.devti.sketch.ui.LangSketch
 import cc.unitmesh.devti.sketch.ui.LanguageSketchProvider
 import cc.unitmesh.devti.util.parser.CodeFence
+import com.intellij.icons.AllIcons
 import com.intellij.ide.scratch.ScratchRootType
 import com.intellij.lang.Language
 import com.intellij.openapi.Disposable
@@ -14,6 +16,7 @@ import com.intellij.openapi.actionSystem.DataProvider
 import com.intellij.openapi.application.ApplicationManager
 import com.intellij.openapi.application.ReadAction
 import com.intellij.openapi.command.WriteCommandAction
+import com.intellij.openapi.diagnostic.logger
 import com.intellij.openapi.editor.Document
 import com.intellij.openapi.editor.Editor
 import com.intellij.openapi.editor.EditorFactory
@@ -25,16 +28,13 @@ import com.intellij.openapi.editor.ex.MarkupModelEx
 import com.intellij.openapi.editor.highlighter.EditorHighlighterFactory
 import com.intellij.openapi.fileEditor.FileDocumentManager
 import com.intellij.openapi.fileEditor.FileEditor
-import com.intellij.openapi.fileEditor.FileEditorProvider
-import com.intellij.openapi.fileEditor.TextEditorWithPreview
 import com.intellij.openapi.fileTypes.PlainTextLanguage
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.util.text.StringUtil
 import com.intellij.openapi.vfs.VirtualFile
 import com.intellij.psi.PsiManager
-import com.intellij.temporary.gui.block.whenDisposed
+import cc.unitmesh.devti.util.whenDisposed
 import com.intellij.testFramework.LightVirtualFile
-import com.intellij.ui.JBColor
 import com.intellij.ui.components.JBPanel
 import com.intellij.util.concurrency.annotations.RequiresReadLock
 import com.intellij.util.ui.JBEmptyBorder
@@ -76,11 +76,7 @@ open class CodeHighlightSketch(
         if (hasSetupAction) return
         hasSetupAction = true
 
-        val editor = if (ideaLanguage?.displayName == "Markdown") {
-            createMarkdownPreviewEditor(text) ?: createCodeViewerEditor(project, text, ideaLanguage, fileName, this)
-        } else {
-            createCodeViewerEditor(project, text, ideaLanguage, fileName, this)
-        }
+        val editor = createCodeViewerEditor(project, text, ideaLanguage, fileName, this)
 
         border = JBEmptyBorder(8)
         layout = BorderLayout(JBUI.scale(8), 0)
@@ -99,27 +95,7 @@ open class CodeHighlightSketch(
         val isDeclarePackageFile = BuildSystemProvider.isDeclarePackageFile(fileName)
         if (textLanguage != null && textLanguage?.lowercase() != "markdown" && ideaLanguage != PlainTextLanguage.INSTANCE) {
             setupActionBar(project, editor, isDeclarePackageFile)
-        } else {
-            editor.backgroundColor = JBColor.PanelBackground
         }
-    }
-
-    private fun createMarkdownPreviewEditor(text: String): EditorEx? {
-        val editorProvider =
-            FileEditorProvider.EP_FILE_EDITOR_PROVIDER.extensionList.firstOrNull {
-                it.javaClass.simpleName == "MarkdownSplitEditorProvider"
-            }
-
-        val file = LightVirtualFile("shire-${System.currentTimeMillis()}.md", text)
-        val createEditor = editorProvider?.createEditor(project, file)
-
-        val preview = createEditor as? TextEditorWithPreview ?: return null
-        var editor = preview?.editor as? EditorEx ?: return null
-        configEditor(editor, project, file, false)
-//        previewEditor = preview.previewEditor
-//        previewEditor?.component?.isOpaque = true
-//        previewEditor?.component?.minimumSize = JBUI.size(0, 0)
-        return editor
     }
 
     override fun getViewText(): String {
@@ -143,7 +119,11 @@ open class CodeHighlightSketch(
 
             val document = editorFragment?.editor?.document
             val normalizedText = StringUtil.convertLineSeparators(text)
-            document?.replaceString(0, document.textLength, normalizedText)
+            try {
+                document?.replaceString(0, document.textLength, normalizedText)
+            } catch (e: Throwable) {
+                logger<CodeHighlightSketch>().error("Error updating editor text", e)
+            }
 
             val lineCount = document?.lineCount ?: 0
             if (lineCount > editorLineThreshold) {
@@ -245,14 +225,12 @@ open class CodeHighlightSketch(
             }
 
             val file: VirtualFile = if (fileName != null) {
-//                ScratchRootType.getInstance().createScratchFile(project, fileName, language, editorText)
-//                    ?:
                 LightVirtualFile(fileName, language, editorText)
             } else {
-                LightVirtualFile("shire.${ext}", language, editorText)
+                LightVirtualFile(AutoDevSnippetFile.naming(ext), language, editorText)
             }
-            val document: Document = file.findDocument() ?: throw IllegalStateException("Document not found")
 
+            val document: Document = file.findDocument() ?: throw IllegalStateException("Document not found")
             return createCodeViewerEditor(project, file, document, disposable, isShowLineNo)
         }
 
@@ -343,16 +321,14 @@ open class CodeHighlightSketch(
  * Add Write Command Action
  */
 private fun CodeHighlightSketch.processWriteCommand(currentText: String) {
-    val button = JButton("Write to file").apply {
-        preferredSize = JBUI.size(100, 30)
+    val button = JButton("Write to file", AllIcons.Actions.MenuSaveall).apply {
+        preferredSize = JBUI.size(120, 30)
 
         addActionListener {
-            val file = ScratchRootType.getInstance().createScratchFile(
-                project,
-                "DevIn-${System.currentTimeMillis()}.devin",
-                Language.findLanguageByID("DevIn"),
-                currentText
-            )
+            val newFileName = "DevIn-${System.currentTimeMillis()}.devin"
+            val language = Language.findLanguageByID("DevIn")
+            val file = ScratchRootType.getInstance()
+                .createScratchFile(project, newFileName, language, currentText)
 
             if (file == null) {
                 return@addActionListener

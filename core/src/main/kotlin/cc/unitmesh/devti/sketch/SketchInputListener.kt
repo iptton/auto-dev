@@ -16,6 +16,10 @@ import com.intellij.openapi.application.ApplicationManager
 import com.intellij.openapi.application.invokeLater
 import com.intellij.openapi.application.runReadAction
 import com.intellij.openapi.diagnostic.logger
+import com.intellij.openapi.progress.ProgressIndicator
+import com.intellij.openapi.progress.ProgressManager
+import com.intellij.openapi.progress.Task
+import com.intellij.openapi.progress.impl.BackgroundableProcessIndicator
 import com.intellij.openapi.project.Project
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.cancellable
@@ -52,7 +56,9 @@ open class SketchInputListener(
             return
         }
 
-        manualSend(userInput)
+        ApplicationManager.getApplication().invokeLater {
+            manualSend(userInput)
+        }
     }
 
     open fun getInitPrompt(): String = systemPrompt
@@ -67,7 +73,8 @@ open class SketchInputListener(
             logger<SketchInputListener>().debug("Input.length < 10: $input")
         }
 
-        ApplicationManager.getApplication().invokeLater {
+        logger<SketchInputListener>().debug("Start compiling: $input")
+        ProgressManager.getInstance().runProcessWithProgressSynchronously({
             val devInProcessor = LanguageProcessor.devin()
             val compiledInput = runReadAction { devInProcessor?.compile(project, input) } ?: input
 
@@ -78,7 +85,7 @@ open class SketchInputListener(
             val flow = chatCodingService.request(getInitPrompt(), compiledInput, isFromSketch = true)
             val suggestion = StringBuilder()
 
-            AutoDevCoroutineScope.scope(project).launch {
+            AutoDevCoroutineScope.workerScope(project).launch {
                 flow.cancelHandler { toolWindow.handleCancel = it }.cancellable().collect { char ->
                     suggestion.append(char)
 
@@ -94,7 +101,7 @@ open class SketchInputListener(
 
                 toolWindow.onFinish(suggestion.toString())
             }
-        }
+        }, AutoDevBundle.message("sketch.compile.devins"), false, project);
     }
 
     override fun dispose() {

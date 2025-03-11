@@ -1,22 +1,20 @@
 package cc.unitmesh.ide.javascript.flow
 
-import cc.unitmesh.devti.AutoDevBundle
+import cc.unitmesh.devti.bridge.archview.model.UiComponent
 import cc.unitmesh.devti.flow.TaskFlow
-import cc.unitmesh.devti.gui.chat.ChatCodingPanel
+import cc.unitmesh.devti.gui.chat.NormalChatCodingPanel
 import cc.unitmesh.devti.llms.LLMProvider
 import cc.unitmesh.devti.template.GENIUS_PAGE
 import cc.unitmesh.devti.template.TemplateRender
 import cc.unitmesh.ide.javascript.flow.model.AutoPageContext
-import cc.unitmesh.devti.bridge.archview.model.UiComponent
 import kotlinx.coroutines.runBlocking
 
-class AutoPageFlow(val context: AutoPageContext, val panel: ChatCodingPanel, val llm: LLMProvider) :
+class AutoPageFlow(val context: AutoPageContext, val panel: NormalChatCodingPanel, val llm: LLMProvider) :
     TaskFlow<String> {
     override fun clarify(): String {
         val stepOnePrompt = generateStepOnePrompt(context)
 
         panel.addMessage(stepOnePrompt, true, stepOnePrompt)
-        panel.addMessage(AutoDevBundle.message("autodev.loading"))
 
         return runBlocking {
             val prompt = llm.stream(stepOnePrompt, "")
@@ -40,7 +38,6 @@ class AutoPageFlow(val context: AutoPageContext, val panel: ChatCodingPanel, val
         val stepTwoPrompt = generateStepTwoPrompt(componentList)
 
         panel.addMessage(stepTwoPrompt, true, stepTwoPrompt)
-        panel.addMessage(AutoDevBundle.message("autodev.loading"))
 
         return runBlocking {
             val prompt = llm.stream(stepTwoPrompt, "")

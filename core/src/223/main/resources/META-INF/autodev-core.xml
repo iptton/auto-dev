@@ -11,6 +11,7 @@
         <notificationGroup id="AutoDev.notification.group" displayType="STICKY_BALLOON" bundle="messages.AutoDevBundle"
                            key="name"/>
 
+
         <applicationConfigurable parentId="tools" instance="cc.unitmesh.devti.settings.AutoDevSettingsConfigurable"
                                  id="cc.unitmesh.devti.settings.AutoDevSettingsConfigurable"
                                  displayName="AutoDev"/>
@@ -20,7 +21,7 @@
                              id="cc.unitmesh.autodevDevOps"
                              bundle="messages.AutoDevBundle" key="settings.autodev.devops"/>
 
-        <projectConfigurable provider="cc.unitmesh.devti.agent.configurable.CoUnitToolConfigurableProvider"
+        <projectConfigurable provider="cc.unitmesh.devti.settings.customize.CustomizeConfigurableProvider"
                              parentId="cc.unitmesh.devti.settings.AutoDevSettingsConfigurable"
                              id="cc.unitmesh.counit"
                              bundle="messages.AutoDevBundle" key="customize.title"/>
@@ -33,10 +34,10 @@
         <applicationService serviceImplementation="cc.unitmesh.devti.settings.AutoDevSettingsState"/>
 
         <applicationService
-                serviceInterface="com.intellij.temporary.inlay.codecomplete.LLMInlayManager"
-                serviceImplementation="com.intellij.temporary.inlay.codecomplete.LLMInlayManagerImpl"/>
+                serviceInterface="cc.unitmesh.devti.inlay.codecomplete.LLMInlayManager"
+                serviceImplementation="cc.unitmesh.devti.inlay.codecomplete.LLMInlayManagerImpl"/>
 
-<!--        <postStartupActivity implementation="cc.unitmesh.devti.update.AutoDevUpdateStartupActivity"/>-->
+        <!--        <postStartupActivity implementation="cc.unitmesh.devti.update.AutoDevUpdateStartupActivity"/>-->
 
         <typedHandler order="first, before completionAutoPopup"
                       implementation="cc.unitmesh.devti.inlay.TypeOverHandler"/>
@@ -77,6 +78,9 @@
                 implementation="cc.unitmesh.devti.gui.snippet.error.CodeBlockHighlightingSettingsProvider"/>
         <daemon.intentionActionFilter
                 implementation="cc.unitmesh.devti.gui.snippet.error.CodeBlockIntentionActionFilter"/>
+
+        <httpRequestHandler implementation="cc.unitmesh.devti.mcp.MCPService"/>
+        <notificationGroup id="UnitMesh.MCPServer" displayType="BALLOON"/>
     </extensions>
 
     <extensions defaultExtensionNs="JavaScript.JsonSchema">
@@ -220,6 +224,12 @@
         <extensionPoint qualifiedName="cc.unitmesh.knowledgeWebApiProvide"
                         interface="cc.unitmesh.devti.bridge.provider.KnowledgeWebApiProvider"
                         dynamic="true"/>
+
+        <!-- mcp -->
+        <extensionPoint qualifiedName="cc.unitmesh.mcpTool"
+                        interface="cc.unitmesh.devti.mcp.McpTool"
+                        dynamic="true"/>
+
     </extensionPoints>
 
     <applicationListeners>
@@ -252,6 +262,7 @@
         <langSketchProvider implementation="cc.unitmesh.devti.sketch.ui.patch.DiffLangSketchProvider"/>
         <langSketchProvider implementation="cc.unitmesh.devti.sketch.ui.webview.WebpageSketchProvider"/>
         <langSketchProvider implementation="cc.unitmesh.devti.sketch.ui.openapi.OpenAPISketchProvider"/>
+        <langSketchProvider implementation="cc.unitmesh.devti.sketch.ui.MarkdownPreviewSketchProvider"/>
 
         <toolchainFunctionProvider implementation="cc.unitmesh.devti.bridge.archview.ComponentViewFunctionProvider"/>
         <toolchainFunctionProvider implementation="cc.unitmesh.devti.bridge.archview.ContainerViewFunctionProvider"/>
@@ -367,14 +378,6 @@
 
         <group id="AutoDev.ToolWindow.Chat.TitleActions">
             <action id="AutoDev.ToolWindow.NewChatAction" class="cc.unitmesh.devti.gui.toolbar.NewChatAction"/>
-            <!--            <action id="AutoDev.ToolWindow.NewSketchAction" class="cc.unitmesh.devti.gui.toolbar.NewSketchAction"/>-->
-        </group>
-
-        <group id="AutoDev.ToolWindow.Message.Toolbar.Assistant">
-            <action id="AutoDev.ToolWindow.Message.Like"
-                    class="cc.unitmesh.devti.gui.chat.message.AutoDevRateMessageAction$Like"/>
-            <action id="AutoDev.ToolWindow.Message.Copy"
-                    class="cc.unitmesh.devti.gui.chat.message.AutoDevRateMessageAction$Copy"/>
         </group>
 
         <action id="AutoDev.NewPromptTemplate" class="cc.unitmesh.devti.actions.template.NewPromptTemplateAction"
