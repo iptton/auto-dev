@@ -27,8 +27,8 @@ plugins {
     alias(libs.plugins.gradleIntelliJPlugin)
     alias(libs.plugins.dokka)
     alias(libs.plugins.kotlin.jvm)
-    alias(libs.plugins.kotlin.plugin.compose)
-    alias(libs.plugins.compose.desktop)
+    alias(libs.plugins.kotlin.plugin.compose) apply false
+    alias(libs.plugins.compose.desktop) apply false
     alias(libs.plugins.kotlinter)
     alias(libs.plugins.jetbrains.grammarkit)
     alias(libs.plugins.saliman.properties)
@@ -48,14 +48,25 @@ val rustPlugins = listOf(
     "org.toml.lang"
 )
 
+val isUltimate = prop("ideaVersion").contains("IU")
+
 val platformVersion = prop("platformVersion").toInt()
-val ideaPlugins = listOf(
-    "com.intellij.java",
-    "org.jetbrains.plugins.gradle",
-    "org.jetbrains.idea.maven",
-    "org.jetbrains.kotlin",
-    "JavaScript"
-)
+val ideaPlugins = if(isUltimate) {
+    listOf(
+        "com.intellij.java",
+        "org.jetbrains.plugins.gradle",
+        "org.jetbrains.idea.maven",
+        "org.jetbrains.kotlin",
+        "JavaScript"
+    )
+} else {
+    listOf(
+        "com.intellij.java",
+        "org.jetbrains.plugins.gradle",
+        "org.jetbrains.idea.maven",
+        "org.jetbrains.kotlin",
+    )
+}
 
 var lang = extra.properties["lang"] ?: "java"
 
@@ -166,13 +177,11 @@ configure(subprojects - project(":exts")) {
     }
 }
 
-
+// root project config
 project(":") {
     apply {
         plugin("org.jetbrains.changelog")
         plugin("org.jetbrains.intellij.platform")
-        plugin(libs.plugins.compose.desktop.get().pluginId)
-        plugin(libs.plugins.kotlin.plugin.compose.get().pluginId)
     }
 
     intellijPlatform {
@@ -242,55 +251,39 @@ project(":") {
             pluginModule(implementation(project(":java")))
             pluginModule(implementation(project(":kotlin")))
             pluginModule(implementation(project(":pycharm")))
-            pluginModule(implementation(project(":javascript")))
+            if (isUltimate) {
+                pluginModule(implementation(project(":javascript")))
+                pluginModule(implementation(project(":exts:ext-database")))
+                pluginModule(implementation(project(":exts:ext-endpoints")))
+                pluginModule(implementation(project(":exts:ext-http-client")))
+                pluginModule(implementation(project(":exts:ext-container")))
+                pluginModule(implementation(project(":exts:ext-vue")))
+            }
             pluginModule(implementation(project(":goland")))
             pluginModule(implementation(project(":rust")))
 
-            pluginModule(implementation(project(":exts:ext-database")))
             pluginModule(implementation(project(":exts:ext-git")))
-            pluginModule(implementation(project(":exts:ext-http-client")))
             pluginModule(implementation(project(":exts:ext-terminal")))
             pluginModule(implementation(project(":exts:ext-mermaid")))
-            pluginModule(implementation(project(":exts:ext-vue")))
             pluginModule(implementation(project(":exts:ext-dependencies")))
-            pluginModule(implementation(project(":exts:ext-endpoints")))
             pluginModule(implementation(project(":exts:ext-plantuml")))
-            pluginModule(implementation(project(":exts:ext-container")))
             pluginModule(implementation(project(":exts:devins-lang")))
 
             testFramework(TestFrameworkType.Bundled)
             testFramework(TestFrameworkType.Platform)
         }
 
-        implementation(project(":core"))
-        implementation(project(":java"))
-        implementation(project(":kotlin"))
-        implementation(project(":pycharm"))
-        implementation(project(":javascript"))
-        implementation(project(":goland"))
-        implementation(project(":rust"))
-
-        implementation(project(":exts:ext-database"))
-        implementation(project(":exts:ext-git"))
-        implementation(project(":exts:ext-http-client"))
-        implementation(project(":exts:ext-terminal"))
-        implementation(project(":exts:ext-mermaid"))
-        implementation(project(":exts:ext-vue"))
-        implementation(project(":exts:ext-dependencies"))
-        implementation(project(":exts:ext-plantuml"))
-        implementation(project(":exts:ext-endpoints"))
-        implementation(project(":exts:ext-container"))
-        implementation(project(":exts:devins-lang"))
-
         kover(project(":core"))
         kover(project(":goland"))
         kover(project(":java"))
-        kover(project(":javascript"))
+        if (isUltimate) {
+            kover(project(":javascript"))
+            kover(project(":exts:ext-database"))
+        }
         kover(project(":kotlin"))
         kover(project(":pycharm"))
         kover(project(":rust"))
 
-        kover(project(":exts:ext-database"))
         kover(project(":exts:devins-lang"))
     }
 
@@ -385,108 +378,6 @@ project(":") {
     }
 }
 
-project(":core") {
-    apply {
-        plugin("org.jetbrains.kotlin.plugin.serialization")
-        plugin(rootProject.libs.plugins.kotlin.plugin.compose.get().pluginId)
-        plugin(rootProject.libs.plugins.compose.desktop.get().pluginId)
-    }
-
-
-    repositories {
-        mavenCentral()
-        google()
-        maven("https://maven.pkg.jetbrains.space/public/p/compose/dev")
-        maven("https://packages.jetbrains.team/maven/p/kpm/public")
-
-        intellijPlatform {
-            defaultRepositories()
-            jetbrainsRuntime()
-        }
-    }
-
-    dependencies {
-        intellijPlatform {
-            intellijIde(prop("ideaVersion"))
-            intellijPlugins(ideaPlugins)
-            testFramework(TestFrameworkType.Bundled)
-            testFramework(TestFrameworkType.Platform)
-        }
-
-        implementation("io.reactivex.rxjava3:rxjava:3.1.10")
-
-        testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:1.10.1")
-        testImplementation(kotlin("test"))
-        testImplementation("com.squareup.okhttp3:mockwebserver:4.12.0") {
-            excludeKotlinDeps()
-        }
-        implementation("com.squareup.okhttp3:okhttp:4.12.0") {
-            excludeKotlinDeps()
-        }
-        implementation("com.squareup.okhttp3:okhttp-sse:4.12.0") {
-            excludeKotlinDeps()
-        }
-
-        implementation("com.squareup.retrofit2:converter-jackson:2.11.0")
-        implementation("com.squareup.retrofit2:converter-gson:2.11.0")
-        implementation("com.fasterxml.jackson.module:jackson-module-kotlin:2.17.2")
-        implementation("com.fasterxml.jackson.core:jackson-databind:2.17.2")
-
-        implementation("org.commonmark:commonmark:0.21.0")
-        implementation("org.commonmark:commonmark-ext-gfm-tables:0.21.0")
-
-        implementation("org.yaml:snakeyaml:2.2")
-
-        implementation("com.nfeld.jsonpathkt:jsonpathkt:2.0.1")
-
-        implementation("org.jetbrains:markdown:0.6.1")
-
-        // chocolate factorys
-        // follow: https://onnxruntime.ai/docs/get-started/with-java.html
-//        implementation("com.microsoft.onnxruntime:onnxruntime:1.18.0")
-//        implementation("ai.djl.huggingface:tokenizers:0.29.0")
-        implementation("cc.unitmesh:cocoa-core:1.0.0") {
-            exclude(group = "org.jetbrains.kotlinx", module = "kotlinx-coroutines-core")
-            excludeKotlinDeps()
-        }
-//        implementation("cc.unitmesh:document:1.0.0")
-
-        // kanban
-        implementation("org.kohsuke:github-api:1.326")
-        implementation("org.gitlab4j:gitlab4j-api:5.8.0")
-
-        // template engine
-        implementation("org.apache.velocity:velocity-engine-core:2.4.1")
-
-        // token count
-        implementation("com.knuddels:jtokkit:1.1.0")
-
-        implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.6.3")
-
-        implementation(compose.desktop.currentOs) {
-            exclude(group = "org.jetbrains.compose.material")
-            exclude(group = "org.jetbrains.kotlinx")
-        }
-
-        val targetIdeVersion = providers.gradleProperty("targetIdeVersion").getOrElse("241")
-        val jewelBridge = when (targetIdeVersion) {
-            "241" -> rootProject.libs.jewel.bridge.ij241
-            "243" -> rootProject.libs.jewel.bridge.ij243
-            "251" -> rootProject.libs.jewel.bridge.ij251
-            else -> rootProject.libs.jewel.bridge.ij241 // Default
-        }
-        implementation(jewelBridge)
-    }
-
-    task("resolveDependencies") {
-        doLast {
-            rootProject.allprojects
-                .map { it.configurations }
-                .flatMap { it.filter { c -> c.isCanBeResolved } }
-                .forEach { it.resolve() }
-        }
-    }
-}
 
 project(":pycharm") {
     dependencies {
@@ -530,18 +421,24 @@ val cssPlugins = listOf(
     //"com.jetbrains.plugins.Jade:$targetVersion",
 )
 
-project(":javascript") {
-    dependencies {
-        intellijPlatform {
-            intellijIde(prop("ideaVersion"))
-            intellijPlugins(ideaPlugins)
-            intellijPlugins(javaScriptPlugins)
-            intellijPlugins(cssPlugins)
+if (isUltimate) {
+    project(":javascript") {
+        dependencies {
+            intellijPlatform {
+                intellijIde(prop("ideaVersion"))
+                intellijPlugins(ideaPlugins)
+                if (isUltimate) {
+                    intellijPlugins(javaScriptPlugins)
+                }
+                intellijPlugins(cssPlugins)
 //            intellijPlugins("intellij.webpack")
-            testFramework(TestFrameworkType.Plugin.JavaScript)
+                if (isUltimate) {
+                    testFramework(TestFrameworkType.Plugin.JavaScript)
+                }
+            }
+
+
         }
-
-
     }
 }
 
@@ -580,30 +477,32 @@ project(":goland") {
     }
 }
 
-project(":exts:ext-database") {
-    dependencies {
-        intellijPlatform {
-            intellijIde(prop("ideaVersion"))
-            intellijPlugins(ideaPlugins + "com.intellij.database")
+if (isUltimate) {
+    project(":exts:ext-database") {
+        dependencies {
+            intellijPlatform {
+                intellijIde(prop("ideaVersion"))
+                intellijPlugins(ideaPlugins + "com.intellij.database")
+            }
+
         }
 
-    }
-
-    sourceSets {
-        main {
-            resources.srcDirs("src/$platformVersion/main/resources")
-        }
-        test {
-            resources.srcDirs("src/$platformVersion/test/resources")
-        }
-    }
-    kotlin {
         sourceSets {
             main {
-                kotlin.srcDirs("src/$platformVersion/main/kotlin")
+                resources.srcDirs("src/$platformVersion/main/resources")
             }
             test {
-                kotlin.srcDirs("src/$platformVersion/test/kotlin")
+                resources.srcDirs("src/$platformVersion/test/resources")
+            }
+        }
+        kotlin {
+            sourceSets {
+                main {
+                    kotlin.srcDirs("src/$platformVersion/main/kotlin")
+                }
+                test {
+                    kotlin.srcDirs("src/$platformVersion/test/kotlin")
+                }
             }
         }
     }
@@ -623,14 +522,16 @@ project(":exts:ext-git") {
     }
 }
 
-project(":exts:ext-http-client") {
-    dependencies {
-        intellijPlatform {
-            intellijIde(prop("ideaVersion"))
-            intellijPlugins(ideaPlugins + "com.jetbrains.restClient")
+if (isUltimate) {
+    project(":exts:ext-http-client") {
+        dependencies {
+            intellijPlatform {
+                intellijIde(prop("ideaVersion"))
+                intellijPlugins(ideaPlugins + "com.jetbrains.restClient")
+            }
+
+
         }
-
-
     }
 }
 
@@ -645,15 +546,17 @@ project(":exts:ext-mermaid") {
     }
 }
 
-project(":exts:ext-vue") {
-    dependencies {
-        intellijPlatform {
-            intellijIde(prop("ideaVersion"))
-            intellijPlugins(ideaPlugins + prop("vuePlugin"))
-            bundledPlugin("org.jetbrains.plugins.vue")
+if (isUltimate) {
+    project(":exts:ext-vue") {
+        dependencies {
+            intellijPlatform {
+                intellijIde(prop("ideaVersion"))
+                intellijPlugins(ideaPlugins + prop("vuePlugin"))
+                bundledPlugin("org.jetbrains.plugins.vue")
+            }
+
+
         }
-
-
     }
 }
 
@@ -680,30 +583,34 @@ project(":exts:ext-plantuml") {
     }
 }
 
-project(":exts:ext-container") {
-    dependencies {
-        intellijPlatform {
-            intellijIde(prop("ideaVersion"))
-            intellijPlugins(ideaPlugins + prop("devContainerPlugin") + "Docker")
+if (isUltimate) {
+    project(":exts:ext-container") {
+        dependencies {
+            intellijPlatform {
+                intellijIde(prop("ideaVersion"))
+                intellijPlugins(ideaPlugins + prop("devContainerPlugin") + "Docker")
+            }
+
+
         }
-
-
     }
 }
-
-project(":exts:ext-endpoints") {
-    dependencies {
-        intellijPlatform {
-            intellijIde(prop("ideaVersion"))
-            intellijPlugins(ideaPlugins + prop("endpointsPlugin") + prop("swaggerPlugin"))
-            intellijPlugins(
-                listOf("com.intellij.spring", "com.intellij.spring.mvc",
+if (isUltimate) {
+    project(":exts:ext-endpoints") {
+        dependencies {
+            intellijPlatform {
+                intellijIde(prop("ideaVersion"))
+                intellijPlugins(ideaPlugins + prop("endpointsPlugin") + prop("swaggerPlugin"))
+                intellijPlugins(
+                    listOf(
+                        "com.intellij.spring", "com.intellij.spring.mvc",
 //                    "com.intellij.micronaut"
+                    )
                 )
-            )
+            }
+
+
         }
-
-
     }
 }
 
@@ -1056,5 +963,14 @@ fun RepositoryHandler.commonRepositories() {
     intellijPlatform {
         defaultRepositories()
         jetbrainsRuntime()
+    }
+}
+
+tasks.withType<ProcessResources> {
+    if (isUltimate) {
+        exclude("META-INF/plugin.xml")
+        from("META-INF-ULTMATE") {
+            into("META-INF")
+        }
     }
 }

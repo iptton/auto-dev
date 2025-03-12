@@ -27,13 +27,21 @@
         <module name="cc.unitmesh.kotlin"/>
         <module name="cc.unitmesh.go"/>
         <module name="cc.unitmesh.rust"/>
+        <module name="cc.unitmesh.csharp"/>
 
         <!-- extension modules -->
+
+        <module name="cc.unitmesh.javascript"/>
+        <module name="cc.unitmesh.database"/>
         <module name="cc.unitmesh.terminal"/>
         <module name="cc.unitmesh.mermaid"/>
         <module name="cc.unitmesh.plantuml"/>
         <module name="cc.unitmesh.git"/>
         <module name="cc.unitmesh.devti.language"/>
+        <module name="cc.unitmesh.httpclient"/>
+        <module name="cc.unitmesh.endpoints"/>
+        <module name="cc.unitmesh.vue"/>
         <module name="cc.unitmesh.dependencies"/>
+        <module name="cc.unitmesh.container"/>
     </content>
 </idea-plugin>
