@@ -28,6 +28,7 @@ class AutoDevAppScope: Disposable {
         fun workerScope(): CoroutineScope = service<AutoDevAppScope>().workerScope
     }
 }
+
 @Service(Service.Level.PROJECT)
 class AutoDevCoroutineScope : Disposable {
     private val coroutineExceptionHandler = CoroutineExceptionHandler { _, throwable ->
@@ -44,7 +45,6 @@ class AutoDevCoroutineScope : Disposable {
 
     companion object {
         fun scope(project: Project): CoroutineScope = project.service<AutoDevCoroutineScope>().coroutineScope
-
 
         @Deprecated(
             message = "using this may cause memory leak after project close",

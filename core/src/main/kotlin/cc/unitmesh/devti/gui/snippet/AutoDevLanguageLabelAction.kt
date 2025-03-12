@@ -1,6 +1,8 @@
 package cc.unitmesh.devti.gui.snippet
 
+import cc.unitmesh.devti.gui.snippet.container.AutoDevContainer
 import cc.unitmesh.devti.util.parser.CodeFence
+import com.intellij.json.JsonLanguage
 import com.intellij.openapi.actionSystem.ActionUpdateThread
 import com.intellij.openapi.actionSystem.AnActionEvent
 import com.intellij.openapi.actionSystem.CommonDataKeys
@@ -40,9 +42,22 @@ class AutoDevLanguageLabelAction : DumbAwareAction(), CustomComponentAction {
 
     override fun update(e: AnActionEvent) {
         val editor = e.dataContext.getData(CommonDataKeys.EDITOR) ?: return
-        val lightVirtualFile = FileDocumentManager.getInstance().getFile(editor.document) as? LightVirtualFile ?: return
-        val displayName =
-            lightVirtualFile.language.displayName ?: CodeFence.displayNameByExt(lightVirtualFile.extension ?: "txt")
+        var lightVirtualFile = FileDocumentManager.getInstance().getFile(editor.document) as? LightVirtualFile ?: return
+
+        val project = e.project ?: return
+        var displayName =
+            lightVirtualFile.language?.displayName ?: CodeFence.displayNameByExt(lightVirtualFile.extension ?: "txt")
+
+        if (lightVirtualFile.language == JsonLanguage.INSTANCE) {
+            val content = editor.document.text
+            val possibleDevContainer = AutoDevContainer.updateForDevContainer(project, lightVirtualFile, content)
+            if (possibleDevContainer != null) {
+                displayName = "DevContainer"
+            }
+
+            lightVirtualFile = possibleDevContainer ?: lightVirtualFile
+        }
+
         e.presentation.putClientProperty(LANGUAGE_PRESENTATION_KEY, displayName)
     }
 

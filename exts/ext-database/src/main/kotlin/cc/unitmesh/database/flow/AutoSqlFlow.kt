@@ -3,7 +3,7 @@ package cc.unitmesh.database.flow
 import cc.unitmesh.database.DbContextActionProvider
 import cc.unitmesh.devti.AutoDevBundle
 import cc.unitmesh.devti.flow.TaskFlow
-import cc.unitmesh.devti.gui.chat.ChatCodingPanel
+import cc.unitmesh.devti.gui.chat.NormalChatCodingPanel
 import cc.unitmesh.devti.llms.LLMProvider
 import cc.unitmesh.devti.template.GENIUS_SQL
 import cc.unitmesh.devti.template.TemplateRender
@@ -13,7 +13,7 @@ import kotlinx.coroutines.runBlocking
 class AutoSqlFlow(
     private val genSqlContext: AutoSqlContext,
     private val actions: DbContextActionProvider,
-    private val panel: ChatCodingPanel,
+    private val panel: NormalChatCodingPanel,
     private val llm: LLMProvider
 ) : TaskFlow<String> {
     private val logger = logger<AutoSqlFlow>()
@@ -22,7 +22,6 @@ class AutoSqlFlow(
         val stepOnePrompt = generateStepOnePrompt(genSqlContext, actions)
 
         panel.addMessage(stepOnePrompt, true, stepOnePrompt)
-        panel.addMessage(AutoDevBundle.message("autodev.loading"))
 
         return runBlocking {
             val prompt = llm.stream(stepOnePrompt, "")
@@ -35,7 +34,6 @@ class AutoSqlFlow(
         val stepTwoPrompt = generateStepTwoPrompt(genSqlContext, actions, tableNames)
 
         panel.addMessage(stepTwoPrompt, true, stepTwoPrompt)
-        panel.addMessage(AutoDevBundle.message("autodev.loading"))
 
         return runBlocking {
             val prompt = llm.stream(stepTwoPrompt, "")
@@ -77,7 +75,6 @@ class AutoSqlFlow(
 
     override fun fix(errors: String): String {
         panel.addMessage(errors, true, errors)
-        panel.addMessage(AutoDevBundle.message("autodev.loading"))
 
         return runBlocking {
             val prompt = llm.stream(errors, "")

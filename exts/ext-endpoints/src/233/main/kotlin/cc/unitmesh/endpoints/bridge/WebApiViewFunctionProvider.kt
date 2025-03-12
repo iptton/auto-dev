@@ -35,20 +35,14 @@ class WebApiViewFunctionProvider : ToolchainFunctionProvider {
                         return
                     }
 
-                    val map = collectUrls(project, endpointsProviderList as List<EndpointsProvider<Any, Any>>)
-                    val result =
-                        "Here is current project web ${map.size} api endpoints: \n```\n" + map.joinToString("\n") { url ->
-                            when (url) {
-                                is UrlMappingElement -> url.method.joinToString("\n") {
-                                    "$it - ${url.urlPath.toStringWithStars()}" +
-                                            " (${UrlMappingElement.getContainingFileName(url)})"
-                                }
-                                else -> {
-                                    url.toString()
-                                }
-                            }
-                        } + "\n```"
+                    val urls = collectUrls(project, endpointsProviderList as List<EndpointsProvider<Any, Any>>)
+                    val formatUrls = urls
+                        .map(::formatUrl)
+                        .filter(String::isNotBlank)
+                        .joinToString("\n")
 
+                    val result = "Here is current ${urls.size} api endpoints: \n```\n" + formatUrls + "\n```" +
+                            "\nYou can use `/knowledge` command to get more details about the endpoints."
                     future.complete(result)
                 } catch (e: Exception) {
                     future.completeExceptionally(e)
@@ -60,6 +54,17 @@ class WebApiViewFunctionProvider : ToolchainFunctionProvider {
             .runProcessWithProgressAsynchronously(task, BackgroundableProcessIndicator(task))
 
         return future.get()
+    }
+
+    private fun formatUrl(url: Any): String = when (url) {
+        is UrlMappingElement -> url.method.joinToString("\n") {
+            "$it - ${url.urlPath.toStringWithStars()}" +
+                    " (${UrlMappingElement.getContainingFileName(url)})"
+        }
+
+        else -> {
+            url.toString()
+        }
     }
 }
 

@@ -10,6 +10,7 @@ import cc.unitmesh.devti.provider.context.ChatCreationContext
 import cc.unitmesh.devti.provider.context.ChatOrigin
 import cc.unitmesh.devti.sketch.run.ShellUtil
 import cc.unitmesh.devti.template.context.TemplateContext
+import com.intellij.openapi.application.runInEdt
 import com.intellij.openapi.application.runReadAction
 import com.intellij.openapi.diagnostic.logger
 import com.intellij.openapi.editor.Editor
@@ -46,16 +47,19 @@ data class BridgeRunContext(
 ) : TemplateContext {
     companion object {
         fun create(project: Project, myEditor: Editor?, input: String): BridgeRunContext {
-            val editor = myEditor ?: FileEditorManager.getInstance(project).selectedTextEditor
+            var editor: Editor? = null
+            runInEdt {
+                editor = (myEditor ?: FileEditorManager.getInstance(project).selectedTextEditor)
+            }
             val currentFile: VirtualFile? = if (editor != null) {
-                FileDocumentManager.getInstance().getFile(editor.document)!!
+                FileDocumentManager.getInstance().getFile(editor!!.document)
             } else {
                 FileEditorManager.getInstance(project).selectedFiles.firstOrNull()
             }
             val psi = currentFile?.let { runReadAction { PsiManager.getInstance(project).findFile(it) } }
             val currentElement = editor?.let { runReadAction { psi?.findElementAt(it.caretModel.offset) } }
             val creationContext =
-                ChatCreationContext(ChatOrigin.Intention, ChatActionType.CHAT, psi, listOf(), element = psi)
+                ChatCreationContext(ChatOrigin.Intention, ChatActionType.CHAT, psi, listOf(), psi)
 
             val buildInfo = BuildSystemProvider.guess(project).firstOrNull()
             val buildTool = if (buildInfo != null) {

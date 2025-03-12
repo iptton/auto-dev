@@ -1,8 +1,9 @@
 package cc.unitmesh.devti.actions.chat
 
+import cc.unitmesh.devti.AutoDevNotifications
 import cc.unitmesh.devti.gui.AutoDevToolWindowFactory
 import cc.unitmesh.devti.gui.chat.message.ChatActionType
-import cc.unitmesh.devti.gui.chat.ChatCodingPanel
+import cc.unitmesh.devti.gui.chat.NormalChatCodingPanel
 import cc.unitmesh.devti.gui.chat.ChatCodingService
 import cc.unitmesh.devti.gui.chat.message.ChatContext
 import cc.unitmesh.devti.provider.ContextPrompter
@@ -14,11 +15,11 @@ import com.intellij.openapi.actionSystem.CommonDataKeys
 import com.intellij.openapi.application.ApplicationManager
 import com.intellij.openapi.diagnostic.logger
 import com.intellij.openapi.project.IndexNotReadyException
-import com.intellij.temporary.getElementToAction
+import cc.unitmesh.devti.intentions.action.getElementToAction
 
 class CodeCompleteChatAction : AnAction() {
 
-    init{
+    init {
         presentationText("settings.autodev.others.codeComplete", templatePresentation)
     }
 
@@ -58,23 +59,18 @@ class CodeCompleteChatAction : AnAction() {
                 val actionType = ChatActionType.CODE_COMPLETE
                 val chatCodingService = ChatCodingService(actionType, project)
                 val toolWindowManager = AutoDevToolWindowFactory.getToolWindow(project) ?: run {
-                        logger.warn("Tool window not found")
-                        return@runReadAction
-                    }
+                    logger.warn("Tool window not found")
+                    return@runReadAction
+                }
 
-                val contentManager = toolWindowManager.contentManager
-                val contentPanel = ChatCodingPanel(chatCodingService, toolWindowManager.disposable)
-
-                val content =
-                    contentManager.factory.createContent(contentPanel, chatCodingService.getLabel(), false)
-                contentManager.removeAllContents(true)
-                contentManager.addContent(content)
+                val contentPanel = AutoDevToolWindowFactory.labelNormalChat(toolWindowManager, chatCodingService)
 
                 toolWindowManager.activate {
                     val chatContext = ChatContext(null, prefixText, suffixText)
                     chatCodingService.handlePromptAndResponse(contentPanel, prompter, chatContext, true)
                 }
             } catch (ignore: IndexNotReadyException) {
+                AutoDevNotifications.warn(project, "Index not ready")
                 return@runReadAction
             }
         }

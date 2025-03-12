@@ -4,7 +4,7 @@ import cc.unitmesh.devti.AutoDevBundle
 import cc.unitmesh.devti.agent.model.CustomAgentConfig
 import cc.unitmesh.devti.agent.model.CustomAgentResponseAction
 import cc.unitmesh.devti.agent.model.CustomAgentState
-import cc.unitmesh.devti.gui.chat.ChatCodingPanel
+import cc.unitmesh.devti.gui.chat.NormalChatCodingPanel
 import cc.unitmesh.devti.gui.chat.message.ChatRole
 import cc.unitmesh.devti.llms.LLMProvider
 import cc.unitmesh.devti.provider.ContextPrompter
@@ -24,7 +24,7 @@ class CustomAgentChatProcessor(val project: Project) {
     private val customAgentExecutor = project.service<CustomAgentExecutor>()
     private val logger = logger<CustomAgentChatProcessor>()
 
-    fun handleChat(prompter: ContextPrompter, ui: ChatCodingPanel, llmProvider: LLMProvider): String? {
+    fun handleChat(prompter: ContextPrompter, ui: NormalChatCodingPanel, llmProvider: LLMProvider): String? {
         val originPrompt = prompter.requestPrompt()
         ui.addMessage(originPrompt, true, originPrompt)
 
@@ -45,7 +45,6 @@ class CustomAgentChatProcessor(val project: Project) {
         var devInCode: String? = ""
         when (selectedAgent.responseAction) {
             CustomAgentResponseAction.Direct -> {
-                val message = ui.addMessage("loading", false, "")
                 val sb = StringBuilder()
                 runBlocking {
                     val result = ui.updateMessage(response)
@@ -54,7 +53,6 @@ class CustomAgentChatProcessor(val project: Project) {
 
                 val content = sb.toString().removeSurrounding("\"")
                 llmProvider.appendLocalMessage(content, ChatRole.Assistant)
-                message.reRenderAssistantOutput()
 
                 val code = CodeFence.parse(content)
                 if (code.language.displayName == "DevIn") {
@@ -68,7 +66,6 @@ class CustomAgentChatProcessor(val project: Project) {
             }
 
             CustomAgentResponseAction.Stream -> {
-                ui.addMessage(AutoDevBundle.message("autodev.loading"))
                 val future: CompletableFuture<String> = CompletableFuture()
                 val sb = StringBuilder()
                 runBlocking {
@@ -131,7 +128,6 @@ class CustomAgentChatProcessor(val project: Project) {
             }
 
             CustomAgentResponseAction.DevIns -> {
-                ui.addMessage(AutoDevBundle.message("autodev.loading"))
                 val msg: String = runBlocking {
                     ui.updateMessage(response)
                 }

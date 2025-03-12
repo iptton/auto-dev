@@ -5,6 +5,7 @@ import cc.unitmesh.devti.alignRight
 import cc.unitmesh.devti.gui.chat.ChatCodingService
 import cc.unitmesh.devti.gui.chat.message.ChatActionType
 import cc.unitmesh.devti.gui.chat.ui.AutoDevInputSection
+import cc.unitmesh.devti.gui.chat.view.MessageView
 import cc.unitmesh.devti.gui.toolbar.NewSketchAction
 import cc.unitmesh.devti.inline.AutoDevInlineChatService
 import cc.unitmesh.devti.inline.fullHeight
@@ -12,6 +13,7 @@ import cc.unitmesh.devti.inline.fullWidth
 import cc.unitmesh.devti.sketch.ui.ExtensionLangSketch
 import cc.unitmesh.devti.sketch.ui.LangSketch
 import cc.unitmesh.devti.sketch.ui.LanguageSketchProvider
+import cc.unitmesh.devti.sketch.ui.MarkdownPreviewHighlightSketch
 import cc.unitmesh.devti.sketch.ui.code.CodeHighlightSketch
 import cc.unitmesh.devti.util.AutoDevCoroutineScope
 import cc.unitmesh.devti.util.parser.CodeFence
@@ -29,7 +31,6 @@ import com.intellij.openapi.project.Project
 import com.intellij.openapi.ui.DialogPanel
 import com.intellij.openapi.ui.NullableComponent
 import com.intellij.openapi.ui.SimpleToolWindowPanel
-import com.intellij.ui.components.JBLabel
 import com.intellij.ui.components.JBScrollPane
 import com.intellij.ui.components.panels.VerticalLayout
 import com.intellij.ui.dsl.builder.Cell
@@ -56,15 +57,16 @@ interface SketchProcessListener {
 
 open class SketchToolWindow(
     val project: Project,
-    val editor: Editor?,
+    open val editor: Editor?,
     private val showInput: Boolean = false,
     chatActionType: ChatActionType = ChatActionType.SKETCH
-) :
-    SimpleToolWindowPanel(true, true), NullableComponent, Disposable {
+) : SimpleToolWindowPanel(true, true), NullableComponent, Disposable {
     open val chatCodingService = ChatCodingService(chatActionType, project)
     open val inputListener: SketchInputListener = SketchInputListener(project, chatCodingService, this)
-    private var progressBar: CustomProgressBar = CustomProgressBar(this)
-    private var thinkingHighlight: CodeHighlightSketch = CodeHighlightSketch(project, "<Thinking />", PlainTextLanguage.INSTANCE)
+    private var progressBar: JProgressBar = JProgressBar()
+
+    private var thinkingHighlight: CodeHighlightSketch =
+        CodeHighlightSketch(project, "<Thinking />", PlainTextLanguage.INSTANCE)
     private var thinkingPanel = panel {
         row {
             cell(thinkingHighlight).fullWidth()
@@ -93,10 +95,7 @@ open class SketchToolWindow(
 
         addMouseListener(object : MouseAdapter() {
             override fun mouseClicked(e: MouseEvent?) {
-                var allText =
-                    historyPanel.components.filterIsInstance<LangSketch>().joinToString("\n") { it.getViewText() }
-                allText += myList.components.filterIsInstance<LangSketch>().joinToString("\n") { it.getViewText() }
-
+                var allText = chatCodingService.getAllMessages().joinToString("\n") { it.content }
                 val selection = StringSelection(allText)
                 val clipboard = Toolkit.getDefaultToolkit().systemClipboard
                 clipboard.setContents(selection, null)
@@ -155,7 +154,7 @@ open class SketchToolWindow(
             override fun keyPressed(e: KeyEvent) {
                 if (e.keyCode == KeyEvent.VK_ESCAPE) {
                     if (editor != null) {
-                        AutoDevInlineChatService.getInstance().closeInlineChat(editor)
+                        AutoDevInlineChatService.getInstance().closeInlineChat(editor!!)
                     }
                 }
             }
@@ -207,8 +206,7 @@ open class SketchToolWindow(
     fun onStart() {
         beforeRun()
         initializePreAllocatedBlocks(project)
-        progressBar.isIndeterminate = true
-        progressBar.isVisible = !showInput
+        progressBar.isVisible = true
     }
 
     fun hiddenProgressBar() {
@@ -228,7 +226,7 @@ open class SketchToolWindow(
         processListeners.forEach { it.onBefore() }
     }
 
-    fun AfterRun() {
+    fun afterRun() {
         processListeners.forEach { it.onAfter() }
     }
 
@@ -248,6 +246,8 @@ open class SketchToolWindow(
     }
 
     fun addRequestPrompt(text: String) {
+        progressBar.isIndeterminate = true
+
         runInEdt {
             historyPanel.add(createSingleTextView(text, language = "DevIn"))
             this.revalidate()
@@ -277,20 +277,8 @@ open class SketchToolWindow(
         }
     }
 
-    private fun createSingleTextView(text: String, language: String = "markdown"): DialogPanel {
-        val codeBlockViewer = CodeHighlightSketch(project, text, CodeFence.findLanguage(language)).apply {
-            initEditor(text)
-        }
-
-        codeBlockViewer.editorFragment!!.setCollapsed(true)
-        codeBlockViewer.editorFragment!!.updateExpandCollapseLabel()
-
-        val panel = panel {
-            row {
-                cell(codeBlockViewer).fullWidth()
-            }
-        }
-        return panel
+    fun createSingleTextView(text: String, language: String = "markdown"): DialogPanel {
+        return MessageView.createSingleTextView(project, text, language)
     }
 
     fun onUpdate(text: String) {
@@ -304,6 +292,11 @@ open class SketchToolWindow(
                     if (codeFence.originLanguage != null && codeFence.isComplete && blockViews[index] !is ExtensionLangSketch) {
                         langSketch = LanguageSketchProvider.provide(codeFence.originLanguage)
                             ?.create(project, codeFence.text)
+                    }
+
+                    val isCanHtml = codeFence.language.displayName.lowercase() == "markdown"
+                    if (isCanHtml && codeFence.isComplete && blockViews[index] !is ExtensionLangSketch) {
+                        langSketch = MarkdownPreviewHighlightSketch(project, codeFence.text)
                     }
 
                     if (langSketch != null) {
@@ -359,7 +352,7 @@ open class SketchToolWindow(
         progressBar.isVisible = false
         scrollToBottom()
 
-        AfterRun()
+        afterRun()
 
         if (AutoSketchMode.getInstance(project).isEnable && !isInterrupted) {
             AutoSketchMode.getInstance(project).start(text, this@SketchToolWindow.inputListener)
@@ -419,36 +412,6 @@ open class SketchToolWindow(
         runInEdt {
             thinkingPanel.isVisible = false
         }
-    }
-}
-
-class CustomProgressBar(private val view: SketchToolWindow) : JPanel(BorderLayout()) {
-    private val progressBar: JProgressBar = JProgressBar()
-
-    var isIndeterminate = progressBar.isIndeterminate
-        set(value) {
-            progressBar.isIndeterminate = value
-            field = value
-        }
-
-    private val cancelLabel = JBLabel(AllIcons.Actions.CloseHovered)
-
-    init {
-        cancelLabel.setBorder(JBUI.Borders.empty(0, 5))
-        cancelLabel.addMouseListener(object : MouseAdapter() {
-            override fun mouseClicked(e: MouseEvent?) {
-                view.cancel("This progressBar is canceled")
-            }
-        })
-
-        add(progressBar, BorderLayout.CENTER)
-        add(cancelLabel, BorderLayout.EAST)
-    }
-
-    override fun setVisible(visible: Boolean) {
-        super.setVisible(visible)
-        progressBar.isVisible = visible
-        cancelLabel.isVisible = visible
     }
 }
 

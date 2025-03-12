@@ -118,7 +118,7 @@ configure(subprojects - project(":exts")) {
 
     val testOutput = configurations.create("testOutput")
 
-    if (this.name != "ext-terminal" && this.name != "ext-database") {
+    if (this.name != "ext-terminal" && this.name != "ext-database" && this.name != "ext-container") {
         sourceSets {
             main {
                 java.srcDirs("src/gen")
@@ -177,7 +177,7 @@ configure(subprojects - project(":exts")) {
     }
 }
 
-// root project config
+
 project(":") {
     apply {
         plugin("org.jetbrains.changelog")
@@ -432,9 +432,7 @@ if (isUltimate) {
                 }
                 intellijPlugins(cssPlugins)
 //            intellijPlugins("intellij.webpack")
-                if (isUltimate) {
-                    testFramework(TestFrameworkType.Plugin.JavaScript)
-                }
+                testFramework(TestFrameworkType.Plugin.JavaScript)
             }
 
 
@@ -592,6 +590,25 @@ if (isUltimate) {
             }
 
 
+        }
+    }
+
+    sourceSets {
+        main {
+            resources.srcDirs("src/$platformVersion/main/resources")
+        }
+        test {
+            resources.srcDirs("src/$platformVersion/test/resources")
+        }
+    }
+    kotlin {
+        sourceSets {
+            main {
+                kotlin.srcDirs("src/$platformVersion/main/kotlin")
+            }
+            test {
+                kotlin.srcDirs("src/$platformVersion/test/kotlin")
+            }
         }
     }
 }

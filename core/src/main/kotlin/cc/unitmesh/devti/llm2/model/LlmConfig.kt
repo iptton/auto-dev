@@ -23,8 +23,12 @@ data class LlmConfig(
 ) {
     companion object {
         fun load(): List<LlmConfig> {
+            val llms = AutoDevSettingsState.getInstance().customLlms.trim()
+            if (llms.isEmpty()) {
+                return emptyList()
+            }
+
             val configs: List<LlmConfig> = try {
-                val llms = AutoDevSettingsState.getInstance().customLlms
                 Json.decodeFromString(llms)
             } catch (e: Exception) {
                 throw Exception("Failed to load custom llms: $e")

@@ -1,27 +1,62 @@
 ---
 layout: default
-title: AutoDev Bridge - Legacy Code Migration
+title: AutoDev Bridge - Legacy Migration
 nav_order: 5
 has_children: true
 permalink: /bridge
 ---
 
+Video demo (Bilibili) - 中文：[Watch the video](https://www.bilibili.com/video/BV1RwRNYEE1A/)
+
 # AutoDev Bridge - Legacy Code Migration
 
-Tools prepare:
+Required tool:
 
-### [SCC](https://github.com/boyter/scc)
+- [SCC](https://github.com/boyter/scc)
 
-> A tool similar to cloc, sloccount and tokei. For counting the lines of code, blank lines, comment lines, and physical
-> lines of source code in many programming languages.
+Required plugin:
 
-- macOS: `brew install scc`
-- Windows: `choco install scc`
-- Linux: `snap install scc`
+- [OpenRewrite](https://plugins.jetbrains.com/plugin/23814-openrewrite) (Intellij IDEA Ultimate)
+- [Endpoints](https://plugins.jetbrains.com/plugin/16890-endpoints) (Intellij IDEA Ultimate)
 
-see in [https://github.com/boyter/scc](https://github.com/boyter/scc)
+### Custom Bridge
+
+follow [Prompt Override](/customize/prompt-override), the AI Composer can be customized. in the `prompt/code` folder,
+you can create a file named `bridge.vm` to override the composer prompt.
+
+### Custom Reasoner model
+
+Refs to [New Config (2.0.0-beta.4+)](/quick-start#new-config-200-beta4)
+
+### Docker 
+
+#### Colima 
+
+[Cannot connect to the Docker daemon at unix:///var/run/docker.sock. Is the docker daemon running?](https://github.com/abiosoft/colima/blob/main/docs/FAQ.md#cannot-connect-to-the-docker-daemon-at-unixvarrundockersock-is-the-docker-daemon-running)
+
+```bash
+export COLIMA_HOME=$HOME/.colima
+export DOCKER_HOST="unix://${COLIMA_HOME}/default/docker.sock"
+sudo ln -sf $COLIMA_HOME/default/docker.sock /var/run/docker.sock
+```
+
+##### FAQ
+
+```
+Deploying '<unknown> Dockerfile: ../../../../shire.Dockerfile'…
+ERROR: BuildKit is enabled but the buildx component is missing or broken.
+Install the buildx component to build images with BuildKit:
+https://docs.docker.com/go/buildx/
+Failed to deploy '<unknown> Dockerfile: ../../../../shire.Dockerfile': Image build failed with exit code 1.
+```
+
+Refs: https://github.com/abiosoft/colima/discussions/273
+
+```bash
+brew install docker-buildx
+docker buildx install
+```
 
 
-### OpenRewrite plugin
 
-When you try to use OpenRewrite plugin, you need to install the plugin in your IDE.
+
