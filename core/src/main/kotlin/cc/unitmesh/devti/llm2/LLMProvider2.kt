@@ -20,7 +20,6 @@ import okhttp3.MediaType.Companion.toMediaTypeOrNull
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.RequestBody
-import okhttp3.RequestBody.Companion.toRequestBody
 import okhttp3.Response
 import okhttp3.sse.EventSource
 import okhttp3.sse.EventSourceListener
@@ -68,14 +67,12 @@ abstract class LLMProvider2 protected constructor(
      *
      * TODO: 支持同一 session 同时发送多个请求
      */
-    protected fun sessionScope(session: ChatSession<Message>): CoroutineScope {
-        return if (project != null) {
+    protected fun sessionScope(session: ChatSession<Message>): CoroutineScope =
+        if (project != null) {
             AutoDevCoroutineScope.scope(project)
         } else {
             AutoDevAppScope.scope()
         }
-    }
-
 
     /**
      * Send a text to the LLM
@@ -87,9 +84,10 @@ abstract class LLMProvider2 protected constructor(
         text: Message,
         stream: Boolean = true,
         session: ChatSession<Message> = ChatSession("ignoreHistorySession"),
+        coroutineScope: CoroutineScope = sessionScope(session),
     ): Flow<SessionMessageItem<Message>> {
         cancelCurrentRequest(session)
-        return textComplete(session.appendMessage(text), stream)
+        return textComplete(session.appendMessage(text), coroutineScope, stream)
     }
 
     /**
@@ -97,6 +95,7 @@ abstract class LLMProvider2 protected constructor(
      */
     protected abstract fun textComplete(
         session: ChatSession<Message>,
+        coroutineScope: CoroutineScope,
         stream: Boolean = true,
     ): Flow<SessionMessageItem<Message>>
 
@@ -115,7 +114,6 @@ abstract class LLMProvider2 protected constructor(
     }
 
     companion object {
-
         /**
          * 返回在配置中设置的 provider
          */
@@ -135,12 +133,13 @@ abstract class LLMProvider2 protected constructor(
             authorizationKey: String,
             responseResolver: String = "\$.choices[0].delta.content",
             requestCostomize: String = "",
-        ): LLMProvider2 = DefaultLLMTextProvider(
-            requestUrl = requestUrl,
-            authorizationKey = authorizationKey,
-            responseResolver = responseResolver,
-            requestCustomize = requestCostomize,
-        )
+        ): LLMProvider2 =
+            DefaultLLMTextProvider(
+                requestUrl = requestUrl,
+                authorizationKey = authorizationKey,
+                responseResolver = responseResolver,
+                requestCustomize = requestCostomize,
+            )
 
         /**
          * Ollama Provider，不需提供 authorizationKey
@@ -149,12 +148,13 @@ abstract class LLMProvider2 protected constructor(
             modelName: String,
             requestUrl: String = "http://localhost:11434/v1/chat/completions",
             responseResolver: String = "\$.choices[0].delta.content",
-        ): LLMProvider2 = LLMProvider2(
-            requestUrl = requestUrl,
-            authorizationKey = "",
-            responseResolver = responseResolver,
-            requestCostomize = """{ "customFields": {"model": "$modelName", "temperature": 0.7 } }""",
-        )
+        ): LLMProvider2 =
+            LLMProvider2(
+                requestUrl = requestUrl,
+                authorizationKey = "",
+                responseResolver = responseResolver,
+                requestCostomize = """{ "customFields": {"model": "$modelName", "temperature": 0.7 } }""",
+            )
     }
 }
 
@@ -165,50 +165,59 @@ private class DefaultLLMTextProvider(
     private val requestCustomize: String = "{}",
     project: Project? = null,
 ) : LLMProvider2(project) {
-
-    override fun textComplete(session: ChatSession<Message>, stream: Boolean): Flow<SessionMessageItem<Message>> {
+    override fun textComplete(
+        session: ChatSession<Message>,
+        coroutineScope: CoroutineScope,
+        stream: Boolean,
+    ): Flow<SessionMessageItem<Message>> {
         val client = httpClient.newBuilder().readTimeout(Duration.ofSeconds(30)).build()
-        val requestBuilder = Request.Builder().apply {
-            if (authorizationKey.isNotEmpty()) {
-                addHeader("Authorization", "Bearer $authorizationKey")
+        val requestBuilder =
+            Request.Builder().apply {
+                if (authorizationKey.isNotEmpty()) {
+                    addHeader("Authorization", "Bearer $authorizationKey")
+                }
+                appendCustomHeaders(requestCustomize)
             }
-            appendCustomHeaders(requestCustomize)
-        }
-        val customRequest = CustomRequest(session.chatHistory.map {
-            val cm = it.chatMessage
-            Message(cm.role, cm.content ?: "")
-        })
+        val customRequest =
+            CustomRequest(
+                session.chatHistory.map {
+                    val cm = it.chatMessage
+                    Message(cm.role, cm.content ?: "")
+                },
+            )
         val requestBodyText = customRequest.updateCustomFormat(requestCustomize, stream)
         val requestBody = RequestBody.create("application/json".toMediaTypeOrNull(), requestBodyText.toByteArray())
         println("requestUrl: $requestUrl")
         val request: Request = requestBuilder.url(requestUrl).post(requestBody).build()
 
         return callbackFlow {
-            _sendingJob = sessionScope(session).launch {
-                if (stream) {
-                    sseStream(
-                        client,
-                        request,
-                        onFailure = {
-                            close(it)
-                        },
-                        onClosed = {
-                            close()
-                        },
-                        onEvent = {
-                            trySend(it)
-                        }
-                    )
-                } else {
-                    kotlin.runCatching {
-                        val result = directResult(client, request)
-                        trySend(result)
-                        close()
-                    }.onFailure {
-                        close(it)
+            _sendingJob =
+                coroutineScope.launch {
+                    if (stream) {
+                        sseStream(
+                            client,
+                            request,
+                            onFailure = {
+                                close(it)
+                            },
+                            onClosed = {
+                                close()
+                            },
+                            onEvent = {
+                                trySend(it)
+                            },
+                        )
+                    } else {
+                        kotlin
+                            .runCatching {
+                                val result = directResult(client, request)
+                                trySend(result)
+                                close()
+                            }.onFailure {
+                                close(it)
+                            }
                     }
                 }
-            }
             awaitClose()
         }
     }
@@ -223,40 +232,59 @@ private class DefaultLLMTextProvider(
     ) {
         val factory = EventSources.createFactory(client)
         var result = ""
-        factory.newEventSource(request, object : EventSourceListener() {
-            override fun onEvent(eventSource: EventSource, id: String?, type: String?, data: String) {
-                super.onEvent(eventSource, id, type, data)
-                if (data == "[DONE]") {
-                    return
+        factory.newEventSource(
+            request,
+            object : EventSourceListener() {
+                override fun onEvent(
+                    eventSource: EventSource,
+                    id: String?,
+                    type: String?,
+                    data: String,
+                ) {
+                    super.onEvent(eventSource, id, type, data)
+                    if (data == "[DONE]") {
+                        return
+                    }
+                    val chunk: String =
+                        JsonPath.parse(data)?.read(responseResolver) ?: run {
+                            // in some case, the response maybe not equal to our response format, so we need to ignore it
+                            // {"id":"cmpl-ac26a17e","object":"chat.completion.chunk","created":1858403,"model":"yi-34b-chat","choices":[{"delta":{"role":"assistant"},"index":0}],"content":"","lastOne":false}
+                            logger.warn(IllegalStateException("cannot parse with responseResolver: $responseResolver, ori data: $data"))
+                            ""
+                        }
+                    result += chunk
+                    onEvent(SessionMessageItem(Message("system", result)))
                 }
-                val chunk: String = JsonPath.parse(data)?.read(responseResolver) ?: run {
-                    // in some case, the response maybe not equal to our response format, so we need to ignore it
-                    // {"id":"cmpl-ac26a17e","object":"chat.completion.chunk","created":1858403,"model":"yi-34b-chat","choices":[{"delta":{"role":"assistant"},"index":0}],"content":"","lastOne":false}
-                    logger.warn(IllegalStateException("cannot parse with responseResolver: ${responseResolver}, ori data: $data"))
-                    ""
+
+                override fun onClosed(eventSource: EventSource) {
+                    if (result.isEmpty()) {
+                        onFailure(IllegalStateException("response is empty"))
+                    }
+                    onClosed()
                 }
-                result += chunk
-                onEvent(SessionMessageItem(Message("system", result)))
-            }
 
-            override fun onClosed(eventSource: EventSource) {
-                if (result.isEmpty()) {
-                    onFailure(IllegalStateException("response is empty"))
+                override fun onFailure(
+                    eventSource: EventSource,
+                    t: Throwable?,
+                    response: Response?,
+                ) {
+                    onFailure(t ?: RuntimeException("${response?.code} ${response?.message} ${response?.body?.string()}"))
                 }
-                onClosed()
-            }
 
-            override fun onFailure(eventSource: EventSource, t: Throwable?, response: Response?) {
-                onFailure(t ?: RuntimeException("${response?.code} ${response?.message} ${response?.body?.string()}"))
-            }
-
-            override fun onOpen(eventSource: EventSource, response: Response) {
-                onOpen()
-            }
-        })
+                override fun onOpen(
+                    eventSource: EventSource,
+                    response: Response,
+                ) {
+                    onOpen()
+                }
+            },
+        )
     }
 
-    private fun directResult(client: OkHttpClient, request: Request): SessionMessageItem<Message> {
+    private fun directResult(
+        client: OkHttpClient,
+        request: Request,
+    ): SessionMessageItem<Message> {
         client.newCall(request).execute().use {
             val body = it.body
             if (body == null) {
@@ -264,9 +292,10 @@ private class DefaultLLMTextProvider(
                 return SessionMessageItem(Message("system", "response body is null"))
             } else {
                 val content = body.string()
-                val result: String = JsonPath.parse(content)?.read(responseResolver) ?: run {
-                    throw IllegalStateException("cannot parse with responseResolver: ${responseResolver}, ori data: $content")
-                }
+                val result: String =
+                    JsonPath.parse(content)?.read(responseResolver) ?: run {
+                        throw IllegalStateException("cannot parse with responseResolver: $responseResolver, ori data: $content")
+                    }
                 return SessionMessageItem(Message("system", result))
             }
         }
